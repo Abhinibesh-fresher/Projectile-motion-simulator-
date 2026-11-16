@@ -1,1 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#070b14" />
+<title>Projectile Motion Simulator</title>
+<link rel="stylesheet" href="style.css?v=2" />
+</head>
+<body>
+<div class="app">
 
+  <!-- ============================= HEADER ============================= -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="dot" aria-hidden="true"></span>
+      <h1>Projectile Motion</h1>
+    </div>
+    <p class="sub">Launch a ball, watch it fly, and compare trajectories. Air resistance is ignored.</p>
+  </header>
+
+  <!-- ============================= MAIN GRID ============================= -->
+  <main class="layout">
+
+    <!-- ---------------------- Canvas / stage ---------------------- -->
+    <section class="card stage" aria-label="Trajectory plot">
+      <div class="canvas-wrap">
+        <canvas id="scene" role="img" aria-label="Plot of the projectile trajectory with ground line and distance scale in metres"></canvas>
+      </div>
+      <!-- Colour key for each launch -->
+      <div class="legend" id="legend" aria-live="polite"></div>
+
+      <!-- Comparison of every launch, sorted by range (furthest first) -->
+      <div class="compare-wrap" id="compareWrap" hidden>
+        <table class="compare">
+          <caption>Launch comparison <span>sorted by range — furthest first</span></caption>
+          <thead>
+            <tr>
+              <th scope="col">Launch</th>
+              <th scope="col">Angle</th>
+              <th scope="col">Speed</th>
+              <th scope="col">Gravity</th>
+              <th scope="col">Flight time</th>
+              <th scope="col">Max height</th>
+              <th scope="col">Range</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------------------- Controls ---------------------- -->
+    <section class="card controls" aria-label="Launch controls">
+
+      <!-- Launch angle -->
+      <div class="control">
+        <div class="control-head">
+          <label for="angle">Launch angle</label>
+          <output id="angleOut" for="angle">45°</output>
+        </div>
+        <input type="range" id="angle" min="0" max="90" step="1" value="45" />
+        <div class="scale-hint"><span>0°</span><span>90°</span></div>
+      </div>
+
+      <!-- Initial velocity -->
+      <div class="control">
+        <div class="control-head">
+          <label for="velocity">Initial velocity</label>
+          <output id="velocityOut" for="velocity">30 m/s</output>
+        </div>
+        <input type="range" id="velocity" min="1" max="100" step="1" value="30" />
+        <div class="scale-hint"><span>1 m/s</span><span>100 m/s</span></div>
+      </div>
+
+      <!-- Initial height -->
+      <div class="control">
+        <div class="control-head">
+          <label for="height">Initial height</label>
+          <output id="heightOut" for="height">0 m</output>
+        </div>
+        <input type="range" id="height" min="0" max="50" step="1" value="0" />
+        <div class="scale-hint"><span>0 m</span><span>50 m</span></div>
+      </div>
+
+      <!-- Gravity -->
+      <div class="control">
+        <div class="control-head">
+          <label for="gravity">Gravity</label>
+          <output id="gravityOut" for="gravity">9.8 m/s²</output>
+        </div>
+        <div class="select-wrap">
+          <!-- Surface gravity of every planet (plus the Moon), in m/s².
+               Values are standard surface gravities; the readout above
+               rounds them to one decimal place. -->
+          <select id="gravity">
+            <optgroup label="Planets">
+              <option value="3.7">Mercury — 3.7 m/s²</option>
+              <option value="8.87">Venus — 8.9 m/s²</option>
+              <option value="9.8" selected>Earth — 9.8 m/s²</option>
+              <option value="3.71">Mars — 3.7 m/s²</option>
+              <option value="24.79">Jupiter — 24.8 m/s²</option>
+              <option value="10.44">Saturn — 10.4 m/s²</option>
+              <option value="8.69">Uranus — 8.7 m/s²</option>
+              <option value="11.15">Neptune — 11.2 m/s²</option>
+            </optgroup>
+            <optgroup label="Moon">
+              <option value="1.62">Moon — 1.6 m/s²</option>
+            </optgroup>
+            <optgroup label="Star / dwarf planet">
+              <option value="274">Sun — 274 m/s²</option>
+              <option value="0.62">Pluto — 0.6 m/s²</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <!-- Velocity vector toggle -->
+      <label class="switch" for="vectors">
+        <input type="checkbox" id="vectors" />
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+        <span class="switch-text">
+          Velocity vectors
+          <small>Show horizontal &amp; vertical components</small>
+        </span>
+      </label>
+
+      <!-- Buttons -->
+      <div class="actions">
+        <button id="launch" class="btn btn-primary" type="button">Launch</button>
+        <div class="actions-row">
+          <button id="reset" class="btn btn-ghost" type="button">Reset</button>
+          <button id="clear" class="btn btn-ghost" type="button">Clear Trails</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------- Live results ---------------------- -->
+    <section class="card results" aria-label="Live results">
+      <h2 class="card-title">Live results</h2>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">Time of flight</span>
+          <span class="stat-value" id="r-tf">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Maximum height</span>
+          <span class="stat-value" id="r-maxh">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Range</span>
+          <span class="stat-value" id="r-range">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Current x</span>
+          <span class="stat-value" id="r-x">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Current y</span>
+          <span class="stat-value" id="r-y">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Current time</span>
+          <span class="stat-value" id="r-t">—</span>
+        </div>
+      </div>
+
+      <p class="speed-note" id="speedNote" hidden></p>
+    </section>
+
+    <!-- ---------------------- How it works ---------------------- -->
+    <section class="card how" aria-label="How it works">
+      <h2 class="card-title">How it works</h2>
+      <p class="how-lead">
+        The ball is launched from height <em>h</em> at angle <em>θ</em> with speed <em>v</em>.
+        Gravity <em>g</em> pulls it straight down and there is no air resistance, so the
+        horizontal and vertical motions are independent.
+      </p>
+
+      <div class="formulas">
+        <div class="formula">
+          <span class="formula-label">Horizontal position</span>
+          <code>x(t) = v · cos θ · t</code>
+        </div>
+        <div class="formula">
+          <span class="formula-label">Vertical position</span>
+          <code>y(t) = h + v · sin θ · t − ½ · g · t²</code>
+        </div>
+        <div class="formula">
+          <span class="formula-label">Velocity components</span>
+          <code>v<sub>x</sub> = v · cos θ &nbsp;·&nbsp; v<sub>y</sub>(t) = v · sin θ − g · t</code>
+        </div>
+        <div class="formula">
+          <span class="formula-label">Time of flight</span>
+          <code>t = ( v·sin θ + √((v·sin θ)² + 2gh) ) / g</code>
+        </div>
+        <div class="formula">
+          <span class="formula-label">Maximum height</span>
+          <code>H = h + (v · sin θ)² / (2g)</code>
+        </div>
+        <div class="formula">
+          <span class="formula-label">Range</span>
+          <code>R = v · cos θ · t<sub>flight</sub></code>
+        </div>
+      </div>
+
+      <p class="how-note">
+        Maximum height is reached at <code>t = v·sin θ / g</code>. If the ball is launched
+        straight up (θ = 90°) it has no horizontal velocity, so the range is zero.
+        Long flights are played back slightly faster; the times shown are always true
+        simulation seconds.
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <span>x = v·cosθ·t &nbsp;·&nbsp; y = h + v·sinθ·t − ½gt²</span>
+  </footer>
+</div>
+
+<!-- ==================================================================
+     WATERMARK
+     ------------------------------------------------------------------
+     Fixed credit line. To change the name, edit the text inside the
+     #watermark div below. Its styling lives in one section of style.css
+     (search for "WATERMARK").
+     ================================================================== -->
+<div id="watermark" aria-hidden="true">Abhinibesh-fresher</div>
+<!-- ==================== end of watermark ==================== -->
+
+<script src="script.js?v=2"></script>
+</body>
+  </html>
